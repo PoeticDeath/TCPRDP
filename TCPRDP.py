@@ -36,9 +36,9 @@ def server():
         rgb[2::3] = bgra[::4]
 
     def cap_jpg():
-        bgra2rgb(grab_screen())
-        IM = Image.frombytes("RGB", (width, height), rgb)
         with lock:
+            bgra2rgb(grab_screen())
+            IM = Image.frombytes("RGB", (width, height), rgb)
             cur.seek(0)
             cur.truncate(0)
             IM.save(cur, "jpeg")
