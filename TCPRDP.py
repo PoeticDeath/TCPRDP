@@ -19,7 +19,9 @@ def server():
     from io import BytesIO
     from PIL import Image
     import socketserver
-    from threading import Thread
+    from threading import Thread, Lock
+
+    lock = Lock()
 
     from win32 import win32gui
     from pythonwin import win32ui
@@ -36,9 +38,10 @@ def server():
     def cap_jpg():
         bgra2rgb(grab_screen())
         IM = Image.frombytes("RGB", (width, height), rgb)
-        cur.seek(0)
-        cur.truncate(0)
-        IM.save(cur, "jpeg")
+        with lock:
+            cur.seek(0)
+            cur.truncate(0)
+            IM.save(cur, "jpeg")
 
     class TCPRDP(socketserver.TCPServer):
         allow_reuse_address = True
@@ -50,12 +53,13 @@ def server():
         def handle(self):
             Thread(target=self.keys, args=(), daemon=True).start()
             while True:
-                size = cur.tell()
-                if size:
-                    self.request.sendall(b"D" + size.to_bytes(4, "big"))
-                    cur.seek(0)
-                    self.request.sendall(cur.read(size))
-                    cur.seek(0)
+                with lock:
+                    size = cur.tell()
+                    if size:
+                        self.request.sendall(b"D" + size.to_bytes(4, "big"))
+                        cur.seek(0)
+                        self.request.sendall(cur.read(size))
+                        cur.seek(0)
 
         def keys(self):
             while True:
