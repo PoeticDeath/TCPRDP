@@ -17,31 +17,19 @@ height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
 
 def server():
     from io import BytesIO
-    from PIL import Image
+    from PIL import ImageGrab
     import socketserver
+    from time import sleep
     from threading import Thread, Lock
 
     lock = Lock()
 
-    from win32 import win32gui
-    from pythonwin import win32ui
-
-    def grab_screen():
-        memdc.BitBlt((0, 0), (width, height), srcdc, (left, top), win32con.SRCCOPY)
-        return bmp.GetBitmapBits(True)
-
-    def bgra2rgb(bgra):
-        rgb[::3] = bgra[2::4]
-        rgb[1::3] = bgra[1::4]
-        rgb[2::3] = bgra[::4]
-
     def cap_jpg():
         with lock:
-            bgra2rgb(grab_screen())
-            IM = Image.frombytes("RGB", (width, height), rgb)
             cur.seek(0)
             cur.truncate(0)
-            IM.save(cur, "jpeg")
+            ImageGrab.grab().save(cur, "jpeg")
+        sleep(0.00001)
 
     class TCPRDP(socketserver.TCPServer):
         allow_reuse_address = True
@@ -96,31 +84,14 @@ def server():
 
     cur = BytesIO()
 
-    left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
-    top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
-
-    hwin = win32gui.GetDesktopWindow()
-
-    hwindc = win32gui.GetWindowDC(hwin)
-    srcdc = win32ui.CreateDCFromHandle(hwindc)
-    memdc = srcdc.CreateCompatibleDC()
-    bmp = win32ui.CreateBitmap()
-    bmp.CreateCompatibleBitmap(srcdc, width, height)
-    memdc.SelectObject(bmp)
-
     server = TCPRDP((argv[2], int(argv[3])), TCPRDPHandler)
     Thread(target=server.serve_forever, args=(), daemon=True).start()
 
-    rgb = bytearray(width * height * 3)
     try:
         while True:
             cap_jpg()
     except KeyboardInterrupt:
         pass
-    srcdc.DeleteDC()
-    memdc.DeleteDC()
-    win32gui.ReleaseDC(hwin, hwindc)
-    win32gui.DeleteObject(bmp.GetHandle())
 
 
 def client():
