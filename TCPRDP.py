@@ -47,8 +47,6 @@ def server():
         allow_reuse_address = True
         request_queue_size = 0
 
-
-
     class TCPRDPHandler(socketserver.BaseRequestHandler):
         def handle(self):
             Thread(target=self.keys, args=(), daemon=True).start()
@@ -56,7 +54,12 @@ def server():
                 with lock:
                     size = cur.tell()
                     if size:
-                        self.request.sendall(b"D" + size.to_bytes(4, "big") + mouse.position[0].to_bytes(2, "big") + mouse.position[1].to_bytes(2, "big"))
+                        self.request.sendall(
+                            b"D"
+                            + size.to_bytes(4, "big")
+                            + mouse.position[0].to_bytes(2, "big")
+                            + mouse.position[1].to_bytes(2, "big")
+                        )
                         cur.seek(0)
                         self.request.sendall(cur.read(size))
                         cur.seek(0)
@@ -72,9 +75,9 @@ def server():
                     case b"KR":
                         keyboard.release(eval(key))
                     case b"ME":
-                        mouse.position = int.from_bytes(
-                            key[:2], "big"
-                        ), int.from_bytes(key[2:4], "big")
+                        mouse.position = int.from_bytes(key[:2], "big"), int.from_bytes(
+                            key[2:4], "big"
+                        )
                     case b"MM":
                         mouse.move(
                             int.from_bytes(key[:2], "big", signed=True),
@@ -90,7 +93,6 @@ def server():
                             int.from_bytes(key[:1], "big", signed=True),
                             int.from_bytes(key[1:2], "big", signed=True),
                         )
-
 
     cur = BytesIO()
 
@@ -196,7 +198,10 @@ def client():
                     cv2.imshow("TCPRDP", frame)
                 cv2.waitKey(1)
                 newmousepos = mouse.position
-                mousepos = (int.from_bytes(data[5:7], "big"), int.from_bytes(data[7:9], "big"))
+                mousepos = (
+                    int.from_bytes(data[5:7], "big"),
+                    int.from_bytes(data[7:9], "big"),
+                )
                 if newmousepos == mousepos:
                     oldmousepos = mousepos
                 if oldmousepos != newmousepos:
