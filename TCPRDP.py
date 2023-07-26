@@ -56,7 +56,7 @@ def server():
                 with lock:
                     size = cur.tell()
                     if size:
-                        self.request.sendall(b"D" + size.to_bytes(4, "big"))
+                        self.request.sendall(b"D" + size.to_bytes(4, "big") + mouse.position[0].to_bytes(2, "big") + mouse.position[1].to_bytes(2, "big"))
                         cur.seek(0)
                         self.request.sendall(cur.read(size))
                         cur.seek(0)
@@ -145,6 +145,7 @@ def client():
         def on_release(key):
             if key in press:
                 press.remove(key)
+            mouse.position = mousepos
             sock.sendall(b"KR" + len(str(key).encode()).to_bytes(4, "big"))
             sock.sendall(str(key).encode())
 
@@ -184,7 +185,7 @@ def client():
         try:
             while True:
                 frame = b""
-                data = sock.recv(5)
+                data = sock.recv(9)
                 size = int.from_bytes(data[1:5], "big")
                 if size and (data[0:1] == b"D"):
                     while len(frame) < size:
@@ -194,15 +195,25 @@ def client():
                     )
                     cv2.imshow("TCPRDP", frame)
                 cv2.waitKey(1)
-                if oldmousepos != mouse.position:
-                    x = mouse.position[0] - oldmousepos[0]
-                    y = mouse.position[1] - oldmousepos[1]
-                    oldmousepos = mouse.position
+                newmousepos = mouse.position
+                mousepos = (int.from_bytes(data[5:7], "big"), int.from_bytes(data[7:9], "big"))
+                if newmousepos == mousepos:
+                    oldmousepos = mousepos
+                if oldmousepos != newmousepos:
+                    x = newmousepos[0] - oldmousepos[0]
+                    y = newmousepos[1] - oldmousepos[1]
+                    oldmousepos = newmousepos
                     sock.sendall(b"MM" + int(4).to_bytes(4, "big"))
                     sock.sendall(
                         x.to_bytes(2, "big", signed=True)
                         + y.to_bytes(2, "big", signed=True)
                     )
+                if newmousepos[0] == 0 or newmousepos[0] == width - 1:
+                    mouse.position = (mousepos[0], mouse.position[1])
+                    oldmousepos = (mousepos[0], oldmousepos[1])
+                if newmousepos[1] == 0 or newmousepos[1] == height - 1:
+                    mouse.position = (mouse.position[0], mousepos[1])
+                    oldmousepos = (oldmousepos[0], mousepos[1])
                 press = set()
         except KeyboardInterrupt:
             pass
