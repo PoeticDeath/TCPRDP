@@ -81,7 +81,10 @@ def server():
                             int.from_bytes(key[2:4], "big", signed=True),
                         )
                     case b"MC":
-                        mouse.click(eval(key[:-1]), key[-1])
+                        if key[-1]:
+                            mouse.press(eval(key[:-1]))
+                        else:
+                            mouse.release(eval(key[:-1]))
                     case b"MS":
                         mouse.scroll(
                             int.from_bytes(key[:1], "big", signed=True),
