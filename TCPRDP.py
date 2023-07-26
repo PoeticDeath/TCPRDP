@@ -147,7 +147,6 @@ def client():
         def on_release(key):
             if key in press:
                 press.remove(key)
-            mouse.position = mousepos
             sock.sendall(b"KR" + len(str(key).encode()).to_bytes(4, "big"))
             sock.sendall(str(key).encode())
 
@@ -157,7 +156,6 @@ def client():
         keylistener.start()
 
         def on_click(x, y, button, pressed):
-            mouse.position = mousepos
             sock.sendall(
                 b"MC"
                 + len(str(button).encode() + pressed.to_bytes(1, "big")).to_bytes(
@@ -214,6 +212,9 @@ def client():
                         x.to_bytes(2, "big", signed=True)
                         + y.to_bytes(2, "big", signed=True)
                     )
+                else:
+                    mouse.position = mousepos
+                    oldmousepos = mousepos
                 if newmousepos[0] == 0 or newmousepos[0] == width - 1:
                     mouse.position = (mousepos[0], mouse.position[1])
                     oldmousepos = (mousepos[0], oldmousepos[1])
