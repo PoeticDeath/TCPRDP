@@ -157,6 +157,7 @@ def client():
         keylistener.start()
 
         def on_click(x, y, button, pressed):
+            mouse.position = mousepos
             sock.sendall(
                 b"MC"
                 + len(str(button).encode() + pressed.to_bytes(1, "big")).to_bytes(
