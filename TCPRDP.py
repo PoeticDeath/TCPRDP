@@ -170,7 +170,7 @@ def client():
                         cv2.COLOR_BGR2RGB,
                     )
                     cv2.imshow("TCPRDP", frame)
-                    cv2.waitKey(1)
+                cv2.waitKey(1)
                 newmousepos = mouse.position
                 mousepos = (
                     int.from_bytes(data[5:7], "big"),
