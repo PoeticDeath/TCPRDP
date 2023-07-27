@@ -1,4 +1,2 @@
 pynput
 pywin32
-pillow
-opencv-python
