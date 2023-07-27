@@ -1,5 +1,7 @@
 from sys import argv
+import numpy as np
 import pynput
+import cv2
 
 from pynput.mouse import Button
 
@@ -16,20 +18,18 @@ height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
 
 
 def server():
-    from io import BytesIO
-    from PIL import ImageGrab
     import socketserver
     from time import sleep
-    from threading import Thread, Lock
+    from PIL import ImageGrab
+    from threading import Thread
 
-    lock = Lock()
+    oldbuf = bytearray()
+    buf = bytearray()
 
     def cap_jpg():
-        with lock:
-            cur.seek(0)
-            cur.truncate(0)
-            ImageGrab.grab().save(cur, "jpeg")
-        sleep(0.00001)
+        im = np.frombuffer(ImageGrab.grab().tobytes(), np.uint8)
+        im.shape = (height, width, 3)
+        buf[:] = cv2.imencode(".jpg", im)[1].tobytes()
 
     class TCPRDP(socketserver.TCPServer):
         allow_reuse_address = True
@@ -39,18 +39,25 @@ def server():
         def handle(self):
             Thread(target=self.keys, args=(), daemon=True).start()
             while True:
-                with lock:
-                    size = cur.tell()
-                    if size:
-                        self.request.sendall(
-                            b"D"
-                            + size.to_bytes(4, "big")
-                            + mouse.position[0].to_bytes(2, "big")
-                            + mouse.position[1].to_bytes(2, "big")
-                        )
-                        cur.seek(0)
-                        self.request.sendall(cur.read(size))
-                        cur.seek(0)
+                scr = bytes(buf)
+                mousepos = mouse.position
+                if scr != oldbuf:
+                    self.request.sendall(
+                        b"D"
+                        + len(scr).to_bytes(4, "big")
+                        + mousepos[0].to_bytes(2, "big")
+                        + mousepos[1].to_bytes(2, "big")
+                    )
+                    self.request.sendall(scr)
+                    oldbuf[:] = scr
+                else:
+                    self.request.sendall(
+                        b"D"
+                        + b"\x00" * 4
+                        + mousepos[0].to_bytes(2, "big")
+                        + mousepos[1].to_bytes(2, "big")
+                    )
+                    sleep(1 / 60)
 
         def keys(self):
             while True:
@@ -82,8 +89,6 @@ def server():
                             int.from_bytes(key[1:2], "big", signed=True),
                         )
 
-    cur = BytesIO()
-
     server = TCPRDP((argv[2], int(argv[3])), TCPRDPHandler)
     Thread(target=server.serve_forever, args=(), daemon=True).start()
 
@@ -98,9 +103,7 @@ def client():
     def mouse_evt(*args):
         win32api.SetCursor(win32api.LoadCursor(0, win32con.IDC_ARROW))
 
-    import cv2
     import socket
-    import numpy as np
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         press = set()
@@ -162,8 +165,9 @@ def client():
                 if size and (data[0:1] == b"D"):
                     while len(frame) < size:
                         frame += sock.recv(size - len(frame))
-                    frame = cv2.imdecode(
-                        np.frombuffer(frame, np.uint8), cv2.IMREAD_COLOR
+                    frame = cv2.cvtColor(
+                        cv2.imdecode(np.frombuffer(frame, np.uint8), cv2.IMREAD_COLOR),
+                        cv2.COLOR_BGR2RGB,
                     )
                     cv2.imshow("TCPRDP", frame)
                 cv2.waitKey(1)
