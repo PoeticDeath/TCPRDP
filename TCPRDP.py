@@ -1,12 +1,8 @@
 import pynput
 from sys import argv
-from win32 import win32api
-from win32.lib import win32con
 from pynput.mouse import Button
 
 mouse = pynput.mouse.Controller()
-width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
-height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
 
 def server():
     import socketserver
@@ -20,12 +16,11 @@ def server():
         def handle(self):
             while True:
                 mousepos = mouse.position
-                if mousepos == (width // 2, height // 2):
-                    self.request.sendall(
-                        mousepos[0].to_bytes(2, "big")
-                        + mousepos[1].to_bytes(2, "big")
-                    )
-                    sleep(1 / 60)
+                self.request.sendall(
+                    mousepos[0].to_bytes(2, "big")
+                    + mousepos[1].to_bytes(2, "big")
+                )
+                sleep(0.0001)
 
     server = TCPRDP((argv[2], int(argv[3])), TCPRDPHandler)
 
