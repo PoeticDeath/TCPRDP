@@ -24,6 +24,14 @@ def server():
                             int.from_bytes(key[:2], "big", signed=True),
                             int.from_bytes(key[2:4], "big", signed=True),
                         )
+                        mousepos = mouse.position
+                        bmousepos = mousepos[0].to_bytes(2, "big") + mousepos[
+                            1
+                        ].to_bytes(2, "big")
+                        if key[4:8] != bmousepos:
+                            self.request.sendall(b"\xff" + bmousepos)
+                        else:
+                            self.request.sendall(b"\x00" * 5)
                     case b"MC":
                         if key[-1]:
                             mouse.press(eval(key[:-1]))
@@ -41,15 +49,29 @@ def server():
 
 def client():
     import socket
+    from threading import Lock
+
+    lock = Lock()
 
     def on_move(x, y):
-        mousepos = mouse.position
-        X = x - mousepos[0]
-        Y = y - mousepos[1]
-        sock.sendall(b"MM" + b"\x00" * 3 + b"\x04")
-        sock.sendall(
-            X.to_bytes(2, "big", signed=True) + Y.to_bytes(2, "big", signed=True)
-        )
+        if not lock.locked():
+            mousepos = mouse.position
+            X = x - mousepos[0]
+            Y = y - mousepos[1]
+            sock.sendall(b"MM" + b"\x00" * 3 + b"\x08")
+            sock.sendall(
+                X.to_bytes(2, "big", signed=True)
+                + Y.to_bytes(2, "big", signed=True)
+                + mousepos[0].to_bytes(2, "big")
+                + mousepos[1].to_bytes(2, "big")
+            )
+            newmouseposb = sock.recv(5)
+            if newmouseposb[:1] == b"\xff":
+                with lock:
+                    mouse.position = (
+                        int.from_bytes(newmouseposb[1:3], "big"),
+                        int.from_bytes(newmouseposb[3:5], "big"),
+                    )
 
     def on_click(x, y, button, pressed):
         sock.sendall(
