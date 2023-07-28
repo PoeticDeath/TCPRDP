@@ -70,7 +70,12 @@ def client():
         )
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((argv[2], int(argv[3])))
+        while True:
+            try:
+                sock.connect((argv[2], int(argv[3])))
+                break
+            except TimeoutError:
+                pass
         with pynput.mouse.Listener(
             on_move=on_move, on_click=on_click, on_scroll=on_scroll, suppress=True
         ) as mouselistener:
