@@ -92,6 +92,7 @@ def client():
         )
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, 255)
         while True:
             try:
                 sock.connect((argv[2], int(argv[3])))
